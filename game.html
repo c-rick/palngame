@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <meta name="author" content="rick">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no,width=device-width,minimum-scale=1.0,maximum-scale=1.0">
+    <meta name="format-detection" content="telephone=no,email=no"/>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>game</title>
+    <style>
+        *{margin: 0;padding: 0;}
+        .over-game{display:none;}
+        .over-game .again-btn{width: 200px;height: 40px;}
+        .begin-game{background: lightgray;width: 100%;height: 100%;top: 0;left: 0;position: fixed;}
+        .begin-game b{border-radius:10px;;text-align:center;border: 1px solid #999999;color: #999999;padding: 10px 20px ;width: 100px;height: 20px;margin: auto;position: absolute;top: 0;left: 0;right: 0;bottom: 0;font-color: linear-gradient(#ffffff,#222222);}
+        .game-contain{display:none;position:absolute;background: url("bg.jpg") repeat-y;background-size: 200% 50%;width: 100%;height: 100%; }
+        .game-contain img{position: absolute;}
+        .level{position: absolute;top: 10px;left: 10px;}
+        .level .level-num{color:antiquewhite ;font-size: 20px;}
+        .level-num:before{content:'LV:';color: antiquewhite;font-size: 20px;font-weight: 700;}
+        progress{background: rgba(245,245,245,.5);border: 1px solid #ffffff;border-radius: 10px;}
+        progress::-webkit-progress-bar { background: transparent; }
+        progress::-webkit-progress-value{background: linear-gradient(#ffffff,#222222,#ffffff);border-radius: 10px;}
+        .musictrl{display:none;padding: 5px ;position: absolute;top: 5px ;right: 5px;background: rgba(245,245,245,.5);color: rgba(245,245,245,.5);}
+    </style>
+</head>
+<body>
+<!--开始-->
+<div class="begin-game">
+    <b class="begin-btn">Begin Game</b>
+</div>
+<!--游戏主界面-->
+<div class="game-contain">
+    <!-- 等级-->
+    <div class="level">
+        <span class="level-num">1</span>
+        <progress id="level-progress" max="100" value="10">
+        </progress>
+    </div>
+</div>
+<!--游戏结束-->
+<div class="over-game begin-game">
+
+    <b class="again-btn">
+        <a>your best level is <span class="bestlevel">1</span></a>
+        <p>Again Game?</p>
+    </b>
+</div>
+<!--音乐-->
+<div class="musictrl">关闭音乐</div>
+<audio id="music"  src="hero.mp3"></audio>
+<script>
+    var game_contain=document.getElementsByClassName('game-contain')[0];//游戏界面
+    var begin_game=document.querySelector('.begin-game');//开始游戏界面
+    var level_num=document.getElementsByClassName('level-num')[0]//等级
+    var progress=document.getElementById('level-progress');//进度条
+    var over_game=document.getElementsByClassName("over-game")[0];//结束界面
+    var leve_init=1;//初始等级0
+    var other=0;//星球总数
+    var others=[];//星球数组
+    var bullets=[];//子弹数组
+    var music=document.getElementById('music');//音乐
+    var musictrl=document.getElementsByClassName('musictrl')[0];//音乐控制
+    //
+    /*
+     创建飞机类
+     */
+    function plan(X,Y,imagesrc,sizeX,sizeY,score,dietime,sudu,boomimage,hp){
+        this.planX=X;//飞碟初始化位置x
+        this.planY=Y;//飞碟初始化位置y
+        this.imagenode=null;//飞碟元素
+        this.planscore=score;//经验值
+        this.plansizeX=sizeX;//飞碟x坐标
+        this.plansizeY=sizeY;//飞碟y坐标
+        this.planboomimage=boomimage;//死亡图片
+        this.planisdie=false;//死亡状态
+        this.planhp=1;
+        this.plandietime=dietime;//死亡时间
+        this.plansudu=sudu;//速度
+//行为
+        /*
+         移动速度
+         */
+        this.planmove=function(){
+            if(leve_init<=3){
+                this.imagenode.style.top=this.imagenode.offsetTop+this.plansudu+"px";
+            }
+            else if(leve_init>3&&leve_init<=6){
+                this.imagenode.style.top=this.imagenode.offsetTop+this.plansudu+20+"px";
+            }
+            else{
+                this.imagenode.style.top=this.imagenode.offsetTop+this.plansudu+40+"px";
+            }
+        }
+//        初始化
+        this.init=function(){
+            this.imagenode=document.createElement("img");
+            this.imagenode.style.left=this.planX+"px";
+            this.imagenode.style.top=this.planY+"px";
+            this.imagenode.src=imagesrc;
+            game_contain.appendChild(this.imagenode);
+        }
+        this.init();
+    }
+    /*
+     创建子弹类
+     */
+    function bullet(X,Y,sizeX,sizeY,imagesrc){
+        this.bulletX=X;
+        this.bulletY=Y;
+        this.bulletimage=null;
+        this.bulletattach=1;
+        this.bulletsizeX=sizeX;
+        this.bulletsizeY=sizeY;
+//行为
+        /*
+         移动行为
+         */
+        this.bulletmove=function(){
+            this.bulletimage.style.top=this.bulletimage.offsetTop-30+"px";
+        }
+        this.init=function(){
+            this.bulletimage=document.createElement("img");
+            this.bulletimage.style.left= this.bulletX+"px";
+            this.bulletimage.style.top= this.bulletY+"px";
+            this.bulletimage.src=imagesrc;
+            game_contain.appendChild(this.bulletimage);
+        }
+        this.init();
+    }
+    /*
+     创建单行子弹类
+     */
+    function oddbullet(X,Y){
+        bullet.call(this,X,Y,6,14,"zidan.png");
+        this.bulletimage.style.width=20+leve_init*3+"px";
+        this.bulletimage.style.height=20+leve_init*3+"px";
+    }
+    //游戏开始函数
+    function beginGame(){
+        var t=100, pageX= 0,pageY= 0, selfplan=new ourplan();//创建本方飞机
+        //移动事件
+        var ourPlan=document.getElementById('ourplan');
+        ourPlan.addEventListener('touchstart',function(event){
+            var touch = event.targetTouches[0];
+            pageX=touch.pageX;
+            pageY=touch.pageY;
+            //removeEventListener
+        })
+        ourPlan.addEventListener('touchmove',function(event){
+            var touch = event.targetTouches[0];
+            if (touch.pageX>40&&touch.pageX<window.innerHeight/2&&touch.pageY>40&&touch.pageY<window.innerHeight-10){
+                ourPlan.style.left= touch.pageX-40+"px";
+                ourPlan.style.top=touch.pageY-40+"px";
+            }
+        })
+        //背景移动
+        var bgt=setInterval(function(){
+            game_contain.style.backgroundPositionY=t+'px';
+            t>1000?t=100:t+=50;
+
+
+        },70);
+        //星球
+        var othert=setInterval(function(){
+            var otherslen=others.length;
+            var bulletslen=bullets.length;
+            //星球创建
+            if(otherslen<20){
+                others.push(new otherplan(leve_init))
+            }
+            for(var i=0;i<otherslen;i++){
+                if(others[i].planisdie!=true){
+                    others[i].planmove();
+                }
+                /*
+                 如果超出边界,删除机敌
+                 */
+                if(others[i].imagenode.offsetTop>568){
+                    game_contain.removeChild(others[i].imagenode);
+                    others.splice(i,1);
+                    otherslen--;
+                }
+                //当敌机死亡标记为true时，经过一段时间后清除敌机
+                if(others[i].planisdie==true){
+                    others[i].plandietimes+=20;
+                    if(others[i].plandietimes==others[i].plandietime){
+                        game_contain.removeChild(others[i].imagenode);
+                        others.splice(i,1);
+                        otherslen--;
+                    }
+                }
+            }
+            //子弹创建
+            if(other>=0){
+                bullets.push(new oddbullet(parseInt(selfplan.imagenode.style.left)+30,parseInt(selfplan.imagenode.style.top)-10));
+            }
+            /*
+             移动子弹
+             */
+
+            for(var i=0;i<bulletslen;i++){
+                bullets[i].bulletmove();
+                /*
+                 如果子弹超出边界,删除子弹
+                 */
+                if(bullets[i].bulletimage.offsetTop<10){
+                    game_contain.removeChild(bullets[i].bulletimage);
+                    bullets.splice(i,1);
+                    bulletslen--;
+                }
+            }
+            for(var k=0;k<bulletslen;k++){
+                for(var j=0;j<otherslen;j++){
+                    //判断碰撞本方飞机
+                    if(others[j].planisdie==false){
+                        if(others[j].imagenode.offsetLeft+others[j].plansizeX>=selfplan.imagenode.offsetLeft&&others[j].imagenode.offsetLeft<=selfplan.imagenode.offsetLeft+selfplan.plansizeX){
+                            if(others[j].imagenode.offsetTop+others[j].plansizeY>=selfplan.imagenode.offsetTop+40&&others[j].imagenode.offsetTop<=selfplan.imagenode.offsetTop+selfplan.plansizeY){
+                                //碰撞本方飞机，游戏结束，统计分数
+                                console.log("游戏结束");
+                                document.querySelector('.bestlevel').innerHTML=leve_init;
+                                over_game.style.display='block';
+                                music.pause();
+                                musictrl.style.display='none';
+                                clearInterval(othert);
+                            }
+                        }
+                        //判断子弹与敌机碰撞
+                        if((bullets[k].bulletimage.offsetLeft+bullets[k].bulletsizeX>others[j].imagenode.offsetLeft)&&(bullets[k].bulletimage.offsetLeft<others[j].imagenode.offsetLeft+others[j].plansizeX)){
+                            if(bullets[k].bulletimage.offsetTop<=others[j].imagenode.offsetTop+others[j].plansizeY&&bullets[k].bulletimage.offsetTop+bullets[k].bulletsizeY>=others[j].imagenode.offsetTop){
+                                //敌机血量减子弹攻击力
+                                others[j].planhp=others[j].planhp-bullets[k].bulletattach;
+                                //敌机血量为0，敌机图片换为爆炸图片，死亡标记为true，计分
+                                if(others[j].planhp==0){
+                                    if(progress.value==100){
+                                        leve_init++;
+                                        progress.value=0;
+                                        level_num.innerText=parseInt(leve_init);
+                                    }else{
+                                        progress.value+=5;
+                                    }
+                                    //others[j].imagenode.src=others[j].planboomimage;
+                                    others[j].planisdie=true;
+                                    game_contain.removeChild(others[j].imagenode);
+                                    others.splice(j,1);
+                                    otherslen--;
+
+
+                                }
+                                //删除子弹
+                                game_contain.removeChild(bullets[k].bulletimage);
+                                bullets.splice(k,1);
+                                bulletslen--;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        },150)
+    }
+    //   创建飞碟
+    function ourplan(){
+        plan.call(this,120,485,'mine.png',66,80,5,660);
+        this.imagenode.setAttribute('id','ourplan');
+        this.imagenode.style.width=80+'px';
+        this.imagenode.style.height=50+'px';
+    }
+    //创建星球
+    function otherplan(leve_init){
+            plan.call(this,Math.random()*window.innerWidth-40,10,'other.png',66,80,0,660,20);
+            other++;
+            this.imagenode.style.width=40+'px';
+            this.imagenode.style.height=40+'px';
+            this.imagenode.style.top<window.innerHeight? this.imagenode.style.top+=50+'px':this.imagenode.remove;
+    }
+
+    document.querySelector('.begin-btn').onmousedown=function(){
+        begin_game.style.display='none';
+        game_contain.style.display="block";
+        music.play();
+        musictrl.style.display='block';
+        beginGame();
+    }
+    document.querySelector(".again-btn").onclick=function(){
+        window.location.reload();
+    }
+    musictrl.addEventListener('click',function(){
+        if(this.innerHTML=="关闭音乐"){
+            music.pause();
+            this.innerHTML="打开音乐";
+        }else{
+            music.play();
+            this.innerHTML="关闭音乐";
+        }
+
+    })
+
+</script>
+</body>
+</html>
